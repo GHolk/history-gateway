@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>history gateway control panel</title>
+    <style>
+      textarea {
+        display: inline-block;
+        width: 40%;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>history gateway control panel</h1>
+
+    <h2>match rule</h2>
+    <textarea name="match-regexp"></textarea>
+
+    <h2>rewrite rule</h2>
+    <textarea name="rewrite-regexp"></textarea>
+    <textarea name="rewrite-replacement"></textarea>
+
+    <button name="save-rule">save rule</button>
+
+    <h2>history log</h2>
+    <script src="control-panel.js"></script>
+  </body>
+</html>

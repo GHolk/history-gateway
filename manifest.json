@@ -7,8 +7,13 @@
     "icons": {
         "48": "icon-48.png"
     },
-    "permissions": ["history", "storage"],
+    "permissions": ["history", "storage", "activeTab"],
     "background": {
         "scripts": ["background-script.js"]
+    },
+    "browser_action": {
+        "default_icon": "icon-48.png",
+        "default_title": "history gateway control panel",
+        "default_popup": "control-panel.html"
     }
 }
