@@ -1,25 +1,3 @@
-
-const history = browser.history
-
-const regexp = /^https?:..nhentai.net[/]g[/]\d+[/]\d*[13579].*$/
-
-history.onTitleChanged.addListener(item => {
-    if (regexp.test(item.url)) {
-        console.log("detect", item.title, item.url)
-        historyStorage.addHistory({
-            url: item.url,
-            title: item.title,
-            date: item.lastVisitTime
-        })
-        history.deleteUrl({url: item.url})
-    }
-})
-
-history.onVisitRemoved.addListener(item => {
-    console.log("delete", item, item.url)
-})
-
-
 const historyStorage = {
     name: 'history-gateway',
     version: 2,
@@ -101,4 +79,56 @@ const historyStorage = {
     }
 }
 
-historyStorage.initIndexDb()
+const historyController = {
+    inject({historyApi, historyStorage}) {
+        Object.assign(this, {historyApi, historyStorage})
+    },
+    handleHistory(item) {
+        if (this.match(item.url)) {
+            this.historyApi.deleteUrl({url: item.url})
+            const rewriteUrl = this.rewrite(item.url)
+            this.historyStorage.addHistory({
+                url: rewriteUrl,
+                title: item.title,
+                date: item.lastVisitTime || item.visitTime || Date.now()
+            })
+        }
+    },
+    rewrite(url) {
+        for (const rule of this.rewriteRule) {
+            if (rule.regexp.test(url)) {
+                return url.replace(rule.regexp, rule.replacement)
+            }
+        }
+        return url
+    },
+    rewriteRule: [],
+    match(url) {
+        for (const rule of this.matchRule) {
+            if (rule.regexp.test(url)) return true
+        }
+        return false
+    },
+    matchRule: [],
+    async loadFromStorage(storage) {
+        const {'rewrite-rule': rewriteList, 'match-rule': matchList} =
+              await storage.get(['rewrite-rule', 'match-rule'])
+        for (const rewrite of rewriteList) {
+            const regexp = new RegExp(rewrite.regexp, 'i')
+            this.rewriteRule.push({regexp, replacement: rewrite.replacement})
+        }
+        for (const match of matchList) {
+            const regexp = new RegExp(match.regexp, 'i')
+            this.matchRule.push({regexp})
+        }
+    }
+}
+
+historyController.inject({historyApi: browser.history, historyStorage})
+historyController.loadFromStorage(browser.storage.local)
+historyController.historyStorage.initIndexDb().then(() => {
+    historyController.historyApi.onTitleChanged.addListener(
+        item => historyController.handleHistory(item)
+
+    )
+})
