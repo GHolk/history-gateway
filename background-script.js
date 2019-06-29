@@ -110,14 +110,16 @@ const historyController = {
         return false
     },
     matchRule: [],
-    async loadFromStorage(storage) {
-        const {'rewrite-rule': rewriteList, 'match-rule': matchList} =
-              await storage.get(['rewrite-rule', 'match-rule'])
-        for (const rewrite of rewriteList) {
+    async loadFromStorage(storage = browser.storage.local) {
+        const {rule} = await storage.get('rule')
+        this.load(rule)
+    },
+    load(rule) {
+        for (const rewrite of rule.rewrite) {
             const regexp = new RegExp(rewrite.regexp, 'i')
             this.rewriteRule.push({regexp, replacement: rewrite.replacement})
         }
-        for (const match of matchList) {
+        for (const match of rule.match) {
             const regexp = new RegExp(match.regexp, 'i')
             this.matchRule.push({regexp})
         }
@@ -125,7 +127,7 @@ const historyController = {
 }
 
 historyController.inject({historyApi: browser.history, historyStorage})
-historyController.loadFromStorage(browser.storage.local)
+historyController.loadFromStorage()
 historyController.historyStorage.initIndexDb().then(() => {
     historyController.historyApi.onTitleChanged.addListener(
         item => historyController.handleHistory(item)
