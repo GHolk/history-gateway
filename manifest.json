@@ -1,0 +1,14 @@
+{
+    "manifest_version": 2,
+    "name": "hostory gateway",
+    "version": "0.0",
+    "description": "filter some history record and save to other place.",
+    "homepage_url": "http://github.com/gholk/history-gateway/",
+    "icons": {
+        "48": "icon-48.png"
+    },
+    "permissions": ["history", "storage"],
+    "background": {
+        "scripts": ["background-script.js"]
+    }
+}
