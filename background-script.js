@@ -1,17 +1,16 @@
 
 const history = browser.history
-const storage = browser.storage.local
-// const indexedDB = window.indexedDB
 
-initHistorySave(storage)
+const regexp = /^https?:..nhentai.net[/]g[/]\d+[/]\d*[13579].*$/
 
-const regexp = /^https?:..nhentai.net.g.\d+.\d*[13579].*$/
-
-history.onVisited.addListener(item => {
-    if (!item.title) return
+history.onTitleChanged.addListener(item => {
     if (regexp.test(item.url)) {
         console.log("detect", item.title, item.url)
-        saveHistory(storage, item)
+        historyStorage.addHistory({
+            url: item.url,
+            title: item.title,
+            date: item.lastVisitTime
+        })
         history.deleteUrl({url: item.url})
     }
 })
@@ -19,6 +18,7 @@ history.onVisited.addListener(item => {
 history.onVisitRemoved.addListener(item => {
     console.log("delete", item, item.url)
 })
+
 
 const historyStorage = {
     name: 'history-gateway',
@@ -28,7 +28,7 @@ const historyStorage = {
         console.error("history indexdb error: ", error)
     },
     async initIndexDb() {
-        const request = indexedDB.open(this.name)
+        const request = indexedDB.open(this.name, this.version)
         const defer = this.defer()
         request.onupgradeneeded = this.handleIndexDbInitStructure
         request.onsuccess = open => {
@@ -43,10 +43,12 @@ const historyStorage = {
         const indexDb = upgrade.target.result
         indexDb.createObjectStore('history-set', {keyPath: 'url'})
     },
-    async addHistory(entry, tx = this.createTransaction()) {
-        const existEntry = await this.getHistory(entry)
+    async addHistory(entry) {
+        const tx = this.createTransaction(this.store, 'readwrite')
+        const existEntry = await this.getHistory(entry, tx)
         const store = tx.objectStore(this.store)
         if (existEntry) {
+            existEntry.title = entry.title
             existEntry.dateList.push(entry.date)
             store.put(existEntry)
         }
@@ -62,7 +64,7 @@ const historyStorage = {
         tx.onerror = defer.reject
         await defer.promise
     },
-    createTransaction(store = this.store, type = 'read') {
+    createTransaction(store = this.store, type = 'readonly') {
         return this.indexDb.transaction(store, type)
     },
     async getHistory(entry, tx = this.createTransaction()) {
@@ -74,6 +76,21 @@ const historyStorage = {
         await defer.promise
         return request.result
     },
+    async getExtractHistory(callback, tx = this.createTransaction()) {
+        const store = tx.objectStore(this.store)
+        const defer = this.defer()
+        const request = store.openCursor()
+        request.onsuccess = open => {
+            const cursor = open.target.result
+            if (cursor) {
+                callback(cursor.value)
+                cursor.continue()
+            }
+            else defer.resolve()
+        }
+        request.onerror = defer.reject
+        return defer.promise
+    },
     defer() {
         const defer = {}
         defer.promise = new Promise((resolve, reject) => {
@@ -84,19 +101,4 @@ const historyStorage = {
     }
 }
 
-async function initHistorySave(storage) {
-    let {'history-length': length} = await storage.get('history-length')
-    if (typeof length != 'number') length = 0
-    await storage.set({'history-length': length})
-    console.log(length)
-}
-async function saveHistory(storage, item) {
-    let {'history-length': length} = await storage.get('history-length')
-    console.log(length)
-    length += 1
-    const itemKey = `history-item-${length}`
-    await storage.set({
-        [itemKey]: {url: item.url, title: item.title},
-        'history-length': length
-    })
-}
+historyStorage.initIndexDb()
