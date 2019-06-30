@@ -104,7 +104,9 @@ const historyMaster = {
             }
         }, this.searchInputTimeout * 1000)
     },
-    async handleHistoryCount(output) {
+    async handleHistoryCount(
+        output = document.getElementsByName('history-record-count')[0]
+    ) {
         const response = await browser.runtime.sendMessage({
             type: 'count-history'
         })
@@ -124,6 +126,10 @@ const historyMaster = {
         anchor.remove()
         URL.revokeObjectURL(response.url)
     },
+    async handleHistoryClear() {
+        await browser.runtime.sendMessage({type: 'clear-history'})
+        await this.handleHistoryCount()
+    }
 }
 historyMaster.entryRow = document.createElement('tr')
 historyMaster.entryRow.innerHTML = '<tr><td><td><td>'
@@ -138,7 +144,6 @@ document.getElementsByName('download-history')[0].onclick =
     input => historyMaster.handleHistoryDownload()
 document.getElementsByName('search-history')[0].oninput =
     input => historyMaster.handleSearchInput(input)
-
-historyMaster.handleHistoryCount(
-    document.getElementsByName('history-record-count')[0]
-)
+document.getElementsByName('clear-history')[0].onclick =
+    () => historyMaster.handleHistoryClear()
+historyMaster.handleHistoryCount()

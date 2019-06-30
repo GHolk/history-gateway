@@ -67,7 +67,15 @@ const historyStorage = {
             else defer.resolve()
         }
         request.onerror = defer.reject
-        return defer.promise
+        return await defer.promise
+    },
+    async clearHistory() {
+        const tx = this.createTransaction(this.store, 'readwrite')
+        const store = tx.objectStore(this.store)
+        const request = store.clear()
+        const defer = this.defer()
+        request.onsuccess = defer.resolve
+        return await defer.promise
     },
     async countRecordNumber() {
         const tx = this.createTransaction()
@@ -75,7 +83,7 @@ const historyStorage = {
         const request = store.count()
         const defer = this.defer()
         request.onsuccess = () => defer.resolve({count: request.result})
-        return defer.promise
+        return await defer.promise
     },
     defer() {
         const defer = {}
@@ -166,6 +174,8 @@ const historyController = {
             return await this.extractHistory()
         case 'count-history':
             return await this.historyStorage.countRecordNumber()
+        case 'clear-history':
+            return await this.historyStorage.clearHistory()
         default:
             console.error('unknown message type: ', message.type)
         }
