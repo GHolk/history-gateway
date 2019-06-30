@@ -90,19 +90,48 @@ const historyMaster = {
     table: document.querySelector('table'),
     searchInputLast: null,
     searchInputTimeout: 1, // second
+    async handleSearch(string) {
+        const keywordList = string.split(/\s+/g)
+        const portName = await browser.runtime.sendMessage({
+            type: 'search-history', keywordList
+        })
+        const port = await new Promise(resolve => {
+            browser.runtime.onConnect.addListener(port => {
+                if (port.name == portName) resolve(port)
+            })
+        })
+        port.onMessage = message => this.showHistory(message)
+        await new Promise(resolve => {
+            port.onDisconnect = resolve
+        })
+    },
     handleSearchInput(input) {
         const current = new Date()
         this.searchInputLast = current
         setTimeout(() => {
             if (this.searchInputLast != current) return
             const string = input.target.value.trim()
-            if (string) {
-                browser.runtime.sendMessage({
-                    type: 'search-history',
-                    keywordList: string.split(/\s+/g)
-                })
-            }
+            if (string) this.handleSearch(string)
         }, this.searchInputTimeout * 1000)
+    },
+    async handleSearchInputDebounce(input) {
+        const current = new Date()
+        this.searchInputLast = current
+        await sleep(this.searchInputTimeout)
+        if (this.searchInputLast != current) return
+
+        const searchString = input.target.value.trim()
+        if (!searchString) return
+
+        const keywordList = searchString.split(/\s+/g)
+        const portName = await browser.runtime.sendMessage({
+            type: 'search-history', keywordList
+        })
+        const port = await waitPort(port => port.name == portName)
+        port.onMessage = message => this.showHistory(message)
+        await new Promise(resolve => {
+            port.onDisconnect = resolve
+        })
     },
     async handleHistoryCount(
         output = document.getElementsByName('history-record-count')[0]
@@ -147,3 +176,18 @@ document.getElementsByName('search-history')[0].oninput =
 document.getElementsByName('clear-history')[0].onclick =
     () => historyMaster.handleHistoryClear()
 historyMaster.handleHistoryCount()
+
+function sleep(second) {
+    return new Promise(wake => setTimeout(wake, second * 1000))
+}
+async function waitPort(test) {
+    let returnPort
+    const port = await new Promise(resolve => {
+        returnPort = port => {
+            if (test(port)) resolve(port)
+        }
+        browser.runtime.onConnect.addListener(returnPort)
+    })
+    browser.runtime.onConnect.removeListener(returnPort)
+    return port
+}
