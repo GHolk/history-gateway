@@ -8,6 +8,12 @@
         display: inline-block;
         width: 40%;
       }
+      table {
+        width: 100%;
+      }
+      table, td, th {
+        border: solid 1px;
+      }
     </style>
   </head>
   <body>
@@ -22,11 +28,26 @@
     <br>
     <button name="save-rule">save rule</button>
 
-    <h2>history log</h2>
-    <input name="history-search">
+    <h2>history search</h2>
+    <label>keyword separate by space:
+      <input name="search-history">
+    </label>
+    <br>
+    
     <table>
       <tr> <th>date <th>title <th>url
     </table>
+
+    <h2>history download</h2>
+    <label>
+      history record count:
+      <output name="history-record-count"></output>
+    </label>
+    
+    <br>
+
+    <button name="download-history">download history</button>
+
     <script src="control-panel.js"></script>
   </body>
 </html>

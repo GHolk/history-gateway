@@ -69,6 +69,14 @@ const historyStorage = {
         request.onerror = defer.reject
         return defer.promise
     },
+    async countRecordNumber() {
+        const tx = this.createTransaction()
+        const store = tx.objectStore(this.store)
+        const request = store.count()
+        const defer = this.defer()
+        request.onsuccess = () => defer.resolve({count: request.result})
+        return defer.promise
+    },
     defer() {
         const defer = {}
         defer.promise = new Promise((resolve, reject) => {
@@ -135,6 +143,16 @@ const historyController = {
             }
         })
     },
+    async extractHistory() {
+        const list = []
+        await this.historyStorage.getExtractHistory(entry => list.push(
+            entry.url + '\t' +
+                encodeURIComponent(entry.title) + '\t' +
+                entry.dateList.join('\t')
+        ))
+        const blob = new Blob([list.join('\n')])
+        return {url: URL.createObjectURL(blob)}
+    },
     async handleMessage(message) {
         switch (message.type) {
         case 'update-rule':
@@ -145,11 +163,9 @@ const historyController = {
             await this.searchHistory(keywordList)
             break
         case 'extract-history':
-            await browser.runtime.sendMessage({type: 'history-list'})
-            this.historyStorage.getExtractHistory(entry => {
-                browser.runtime.sendMessage({type: 'history-entry', entry})
-            })
-            break
+            return await this.extractHistory()
+        case 'count-history':
+            return await this.historyStorage.countRecordNumber()
         default:
             console.error('unknown message type: ', message.type)
         }

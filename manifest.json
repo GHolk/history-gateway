@@ -1,8 +1,8 @@
 {
     "manifest_version": 2,
-    "name": "hostory gateway",
+    "name": "history gateway",
     "author": "gold holk",
-    "version": "0.0",
+    "version": "1.0",
     "description": "filter some history record and save to other place.",
     "homepage_url": "http://github.com/gholk/history-gateway/",
     "icons": {

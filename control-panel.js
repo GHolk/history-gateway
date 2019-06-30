@@ -103,16 +103,42 @@ const historyMaster = {
                 })
             }
         }, this.searchInputTimeout * 1000)
-    }
+    },
+    async handleHistoryCount(output) {
+        const response = await browser.runtime.sendMessage({
+            type: 'count-history'
+        })
+        output.textContent = response.count
+    },
+    async handleHistoryDownload() {
+        const response = await browser.runtime.sendMessage({
+            type: 'extract-history'
+        })
+        const anchor = document.createElement('a')
+        anchor.href = response.url
+        const date = new Date()
+        const dateString = date.toISOString().slice(0, 10)
+        anchor.setAttribute('download', `history-gateway-${dateString}.txt`)
+        document.body.appendChild(anchor)
+        anchor.click()
+        anchor.remove()
+        URL.revokeObjectURL(response.url)
+    },
 }
 historyMaster.entryRow = document.createElement('tr')
 historyMaster.entryRow.innerHTML = '<tr><td><td><td>'
 
 rule.loadToPage()
-document.getElementsByName('save-rule')[0].onclick =
-    () => rule.readSaveUpdate()
-document.getElementsByName('history-search')[0].oninput =
-    input => historyMaster.handleSearchInput(input)
 browser.runtime.onMessage.addListener(
     message => historyMaster.handleMessage(message)
+)
+document.getElementsByName('save-rule')[0].onclick =
+    () => rule.readSaveUpdate()
+document.getElementsByName('download-history')[0].onclick =
+    input => historyMaster.handleHistoryDownload()
+document.getElementsByName('search-history')[0].oninput =
+    input => historyMaster.handleSearchInput(input)
+
+historyMaster.handleHistoryCount(
+    document.getElementsByName('history-record-count')[0]
 )
