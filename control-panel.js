@@ -31,8 +31,88 @@ const rule = {
     async readSaveUpdate() {
         this.read()
         await this.save()
+        await this.update()
+    },
+    async update() {
+        await browser.runtime.sendMessage({
+            type: 'update-rule'
+        })
     }
 }
+const historyMaster = {
+    clearHistory() {
+        while (this.table.children[1]) {
+            this.table.children[1].remove()
+        }
+    },
+    showHistory(message) {
+        const entry = message.entry
+        for (const row of this.entryToNode(entry)) {
+            this.table.appendChild(row)
+        }
+    },
+    *entryToNode(entry) {
+        const deep = true
+        const template = this.entryRow.cloneNode(deep)
+        template.children[1].textContent = entry.title
+        template.children[2].textContent = entry.url
+        for (const date of entry.dateList) {
+            const node = template.cloneNode(deep)
+            const local = this.dateToTimezoneIsoString(date)
+            node.children[0].textContent = local
+            yield node
+        }
+    },
+    dateToTimezoneIsoString(date) {
+        const local = new Date(date)
+        const offset = local.getTimezoneOffset()
+        local.setMinutes(local.getMinutes() - offset)
+
+        const offsetHour = -offset / 60
+        let offsetString = ''
+        if (offsetHour >= 10) offsetString = '+' + offsetHour
+        else if (offsetHour >= 0) offsetString = '+0' + offsetHour
+        else if (offsetHour >= -9) offsetString = '-0' + (-offsetHour)
+        else offsetString = String(offsetHour)
+        offsetString += ':00'
+        return local.toISOString().replace('Z', offsetString)
+    },
+    handleMessage(message) {
+        switch (message.type) {
+        case 'history-entry':
+            return this.showHistory(message)
+        case 'history-list':
+            return this.clearHistory()
+        default:
+            console.error('unknown message: ', message)
+        }
+    },
+    table: document.querySelector('table'),
+    searchInputLast: null,
+    searchInputTimeout: 1, // second
+    handleSearchInput(input) {
+        const current = new Date()
+        this.searchInputLast = current
+        setTimeout(() => {
+            if (this.searchInputLast != current) return
+            const string = input.target.value.trim()
+            if (string) {
+                browser.runtime.sendMessage({
+                    type: 'search-history',
+                    keywordList: string.split(/\s+/g)
+                })
+            }
+        }, this.searchInputTimeout * 1000)
+    }
+}
+historyMaster.entryRow = document.createElement('tr')
+historyMaster.entryRow.innerHTML = '<tr><td><td><td>'
+
 rule.loadToPage()
 document.getElementsByName('save-rule')[0].onclick =
     () => rule.readSaveUpdate()
+document.getElementsByName('history-search')[0].oninput =
+    input => historyMaster.handleSearchInput(input)
+browser.runtime.onMessage.addListener(
+    message => historyMaster.handleMessage(message)
+)

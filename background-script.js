@@ -84,7 +84,9 @@ const historyController = {
         Object.assign(this, {historyApi, historyStorage})
     },
     handleHistory(item) {
+        console.log('new url: ', item.url)
         if (this.match(item.url)) {
+            console.log('detect url: ', item.url)
             this.historyApi.deleteUrl({url: item.url})
             const rewriteUrl = this.rewrite(item.url)
             this.historyStorage.addHistory({
@@ -115,13 +117,41 @@ const historyController = {
         this.load(rule)
     },
     load(rule) {
-        for (const rewrite of rule.rewrite) {
-            const regexp = new RegExp(rewrite.regexp, 'i')
-            this.rewriteRule.push({regexp, replacement: rewrite.replacement})
-        }
-        for (const match of rule.match) {
-            const regexp = new RegExp(match.regexp, 'i')
-            this.matchRule.push({regexp})
+        this.rewriteRule = rule.rewrite.map(rule => ({
+            regexp: new RegExp(rule.regexp, 'i'),
+            replacement: rule.replacement
+        }))
+        this.matchRule = rule.match.map(rule => ({
+            regexp: new RegExp(rule.regexp, 'i')
+        }))
+    },
+    async searchHistory(keywordList) {
+        await browser.runtime.sendMessage({type: 'history-list'})
+        const regexpList = keywordList.map(string => new RegExp(string, 'i'))
+        await this.historyStorage.getExtractHistory(entry => {
+            if (regexpList.some(regexp => regexp.test(entry.title) ||
+                                          regexp.test(entry.url))) {
+                browser.runtime.sendMessage({type: 'history-entry', entry})
+            }
+        })
+    },
+    async handleMessage(message) {
+        switch (message.type) {
+        case 'update-rule':
+            await this.loadFromStorage()
+            break
+        case 'search-history':
+            const keywordList = message.keywordList
+            await this.searchHistory(keywordList)
+            break
+        case 'extract-history':
+            await browser.runtime.sendMessage({type: 'history-list'})
+            this.historyStorage.getExtractHistory(entry => {
+                browser.runtime.sendMessage({type: 'history-entry', entry})
+            })
+            break
+        default:
+            console.error('unknown message type: ', message.type)
         }
     }
 }
@@ -131,6 +161,8 @@ historyController.loadFromStorage()
 historyController.historyStorage.initIndexDb().then(() => {
     historyController.historyApi.onTitleChanged.addListener(
         item => historyController.handleHistory(item)
-
+    )
+    browser.runtime.onMessage.addListener(
+        message => historyController.handleMessage(message)
     )
 })
