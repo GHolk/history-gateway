@@ -145,7 +145,7 @@ const historyController = {
         await browser.runtime.sendMessage({type: 'history-list'})
         const regexpList = keywordList.map(string => new RegExp(string, 'i'))
         await this.historyStorage.getExtractHistory(entry => {
-            if (regexpList.some(regexp => regexp.test(entry.title) ||
+            if (regexpList.every(regexp => regexp.test(entry.title) ||
                                           regexp.test(entry.url))) {
                 browser.runtime.sendMessage({type: 'history-entry', entry})
             }
