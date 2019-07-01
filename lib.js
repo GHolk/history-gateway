@@ -1,15 +1,22 @@
 
 const lib = {
     async waitEvent(target, test) {
-        let handler
-        const message = await new Promise(resolve => {
-            handler = message => {
-                if (test(message)) resolve(message)
-            }
-            target.addListener(handler)
-        })
+        const defer = this.defer()
+        const handler = message => {
+            if (test(message)) defer.resolve(message)
+        }
+        target.addListener(handler)
+        const message = await defer.promise
         target.removeListener(handler)
         return message
+    },
+    defer() {
+        const defer = {}
+        defer.promise = new Promise((resolve, reject) => {
+            defer.resolve = resolve
+            defer.reject = reject
+        })
+        return defer
     },
     sleep(second) {
         return new Promise(wake => setTimeout(wake, second * 1000))
