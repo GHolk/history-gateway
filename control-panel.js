@@ -96,16 +96,12 @@ const historyMaster = {
 
         const keywordList = searchString.split(/\s+/g)
         const portName = 'search-history-result-' + Math.random()
-        const portPromise = lib.waitPort(port => port.name == portName)
-        browser.runtime.sendMessage({
+        await browser.runtime.sendMessage({
             type: 'search-history', portName, keywordList
         })
-        const port = await portPromise
         this.clearHistory()
-        port.onMessage.addListener(message => {
-            if (message.type == 'entry') this.showHistory(message.entry)
-        })
-        port.postMessage({type: 'ready'})
+        const port = browser.runtime.connect({name: portName})
+        port.onMessage.addListener(entry => this.showHistory(entry))
         await new Promise(resolve => {
             port.onDisconnect.addListener(resolve)
         })

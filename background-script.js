@@ -146,7 +146,7 @@ const historyController = {
         await this.historyStorage.getExtractHistory(entry => {
             if (regexpList.every(regexp => regexp.test(entry.title) ||
                                           regexp.test(entry.url))) {
-                port.postMessage({type: 'entry', entry})
+                port.postMessage(entry)
             }
         })
     },
@@ -167,13 +167,12 @@ const historyController = {
             break
         case 'search-history':
             const keywordList = message.keywordList
-            const port = createPort(message.portName)
-            await lib.waitEvent(
-                port.onMessage,
-                message => message.type == 'ready'
-            )
-            this.searchHistory(keywordList, port)
-                .then(() => port.disconnect())
+            const portName = message.portName
+            const portConnect = lib.waitPort(port => port.name == portName)
+            portConnect.then(async port => {
+                await this.searchHistory(keywordList, port)
+                port.disconnect()
+            })
             break
         case 'extract-history':
             return await this.extractHistory()
