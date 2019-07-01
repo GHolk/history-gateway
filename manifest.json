@@ -8,7 +8,7 @@
     "icons": {
         "48": "icon-48.png"
     },
-    "permissions": ["history", "storage", "activeTab"],
+    "permissions": ["history", "storage"],
     "background": {
         "scripts": ["lib.js", "background-script.js"]
     },
