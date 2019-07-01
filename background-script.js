@@ -160,7 +160,7 @@ const historyController = {
         const blob = new Blob([list.join('\n')])
         return {url: URL.createObjectURL(blob)}
     },
-    async handleMessage(message, sender, response) {
+    async handleMessage(message) {
         switch (message.type) {
         case 'update-rule':
             await this.loadFromStorage()
@@ -193,7 +193,7 @@ historyController.historyStorage.initIndexDb().then(() => {
         item => historyController.handleHistory(item)
     )
     browser.runtime.onMessage.addListener(
-        (...args) => historyController.handleMessage(...args)
+        message => historyController.handleMessage(message)
     )
 })
 
