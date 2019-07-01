@@ -141,13 +141,12 @@ const historyController = {
             regexp: new RegExp(rule.regexp, 'i')
         }))
     },
-    async searchHistory(keywordList) {
-        await browser.runtime.sendMessage({type: 'history-list'})
+    async searchHistory(keywordList, port) {
         const regexpList = keywordList.map(string => new RegExp(string, 'i'))
         await this.historyStorage.getExtractHistory(entry => {
             if (regexpList.every(regexp => regexp.test(entry.title) ||
                                           regexp.test(entry.url))) {
-                browser.runtime.sendMessage({type: 'history-entry', entry})
+                port.postMessage({type: 'entry', entry})
             }
         })
     },
@@ -161,14 +160,20 @@ const historyController = {
         const blob = new Blob([list.join('\n')])
         return {url: URL.createObjectURL(blob)}
     },
-    async handleMessage(message) {
+    async handleMessage(message, sender, response) {
         switch (message.type) {
         case 'update-rule':
             await this.loadFromStorage()
             break
         case 'search-history':
             const keywordList = message.keywordList
-            await this.searchHistory(keywordList)
+            const port = createPort(message.portName)
+            await lib.waitEvent(
+                port.onMessage,
+                message => message.type == 'ready'
+            )
+            this.searchHistory(keywordList, port)
+                .then(() => port.disconnect())
             break
         case 'extract-history':
             return await this.extractHistory()
@@ -189,6 +194,11 @@ historyController.historyStorage.initIndexDb().then(() => {
         item => historyController.handleHistory(item)
     )
     browser.runtime.onMessage.addListener(
-        message => historyController.handleMessage(message)
+        (...args) => historyController.handleMessage(...args)
     )
 })
+
+function createPort(name = String(Math.random())) {
+    const port = browser.runtime.connect({name})
+    return port
+}

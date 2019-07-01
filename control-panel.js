@@ -45,8 +45,7 @@ const historyMaster = {
             this.table.children[1].remove()
         }
     },
-    showHistory(message) {
-        const entry = message.entry
+    showHistory(entry) {
         for (const row of this.entryToNode(entry)) {
             this.table.appendChild(row)
         }
@@ -79,10 +78,6 @@ const historyMaster = {
     },
     handleMessage(message) {
         switch (message.type) {
-        case 'history-entry':
-            return this.showHistory(message)
-        case 'history-list':
-            return this.clearHistory()
         default:
             console.error('unknown message: ', message)
         }
@@ -90,47 +85,29 @@ const historyMaster = {
     table: document.querySelector('table'),
     searchInputLast: null,
     searchInputTimeout: 1, // second
-    async handleSearch(string) {
-        const keywordList = string.split(/\s+/g)
-        const portName = await browser.runtime.sendMessage({
-            type: 'search-history', keywordList
-        })
-        const port = await new Promise(resolve => {
-            browser.runtime.onConnect.addListener(port => {
-                if (port.name == portName) resolve(port)
-            })
-        })
-        port.onMessage = message => this.showHistory(message)
-        await new Promise(resolve => {
-            port.onDisconnect = resolve
-        })
-    },
-    handleSearchInput(input) {
-        const current = new Date()
-        this.searchInputLast = current
-        setTimeout(() => {
-            if (this.searchInputLast != current) return
-            const string = input.target.value.trim()
-            if (string) this.handleSearch(string)
-        }, this.searchInputTimeout * 1000)
-    },
     async handleSearchInputDebounce(input) {
-        const current = new Date()
-        this.searchInputLast = current
-        await sleep(this.searchInputTimeout)
-        if (this.searchInputLast != current) return
-
         const searchString = input.target.value.trim()
         if (!searchString) return
 
+        const current = new Date()
+        this.searchInputLast = current
+        await lib.sleep(this.searchInputTimeout)
+        if (this.searchInputLast != current) return
+
         const keywordList = searchString.split(/\s+/g)
-        const portName = await browser.runtime.sendMessage({
-            type: 'search-history', keywordList
+        const portName = 'search-history-result-' + Math.random()
+        const portPromise = lib.waitPort(port => port.name == portName)
+        browser.runtime.sendMessage({
+            type: 'search-history', portName, keywordList
         })
-        const port = await waitPort(port => port.name == portName)
-        port.onMessage = message => this.showHistory(message)
+        const port = await portPromise
+        this.clearHistory()
+        port.onMessage.addListener(message => {
+            if (message.type == 'entry') this.showHistory(message.entry)
+        })
+        port.postMessage({type: 'ready'})
         await new Promise(resolve => {
-            port.onDisconnect = resolve
+            port.onDisconnect.addListener(resolve)
         })
     },
     async handleHistoryCount(
@@ -172,22 +149,8 @@ document.getElementsByName('save-rule')[0].onclick =
 document.getElementsByName('download-history')[0].onclick =
     input => historyMaster.handleHistoryDownload()
 document.getElementsByName('search-history')[0].oninput =
-    input => historyMaster.handleSearchInput(input)
+    input => historyMaster.handleSearchInputDebounce(input)
 document.getElementsByName('clear-history')[0].onclick =
     () => historyMaster.handleHistoryClear()
 historyMaster.handleHistoryCount()
 
-function sleep(second) {
-    return new Promise(wake => setTimeout(wake, second * 1000))
-}
-async function waitPort(test) {
-    let returnPort
-    const port = await new Promise(resolve => {
-        returnPort = port => {
-            if (test(port)) resolve(port)
-        }
-        browser.runtime.onConnect.addListener(returnPort)
-    })
-    browser.runtime.onConnect.removeListener(returnPort)
-    return port
-}
