@@ -114,9 +114,9 @@ const historyController = {
         Object.assign(this, {historyApi, historyStorage})
     },
     handleHistory(item) {
-        console.log('new url: ', item.url)
+        lib.log('new url: ', item.url)
         if (this.match(item.url)) {
-            console.log('detect url: ', item.url)
+            lib.log('detect url: ', item.url)
             this.historyApi.deleteUrl({url: item.url})
             const rewriteUrl = this.rewrite(item.url)
             this.historyStorage.addHistoryAtomic({

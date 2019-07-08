@@ -39,5 +39,10 @@ const lib = {
         })
         target.removeListener(waitResult)
         return result
+    },
+    debug: false,
+    console: console,
+    log(...strings) {
+        if (this.debug) this.console.log(...strings)
     }
 }
