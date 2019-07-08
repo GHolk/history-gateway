@@ -95,12 +95,11 @@ const historyMaster = {
         if (this.searchInputLast != current) return
 
         const keywordList = searchString.split(/\s+/g)
-        const portName = 'search-history-result-' + Math.random()
-        await browser.runtime.sendMessage({
-            type: 'search-history', portName, keywordList
+        const response = await browser.runtime.sendMessage({
+            type: 'search-history', keywordList
         })
         this.clearHistory()
-        const port = browser.runtime.connect({name: portName})
+        const port = browser.runtime.connect({name: response.portName})
         port.onMessage.addListener(entry => this.showHistory(entry))
         await new Promise(resolve => {
             port.onDisconnect.addListener(resolve)

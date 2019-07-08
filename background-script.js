@@ -167,12 +167,13 @@ const historyController = {
             break
         case 'search-history':
             const keywordList = message.keywordList
-            const portName = message.portName
+            const portName = 'search-history-' + String(Math.random()).slice(2)
             const portConnect = lib.waitPort(port => port.name == portName)
             portConnect.then(async port => {
                 await this.searchHistory(keywordList, port)
                 port.disconnect()
             })
+            return {portName}
             break
         case 'extract-history':
             return await this.extractHistory()
