@@ -2,16 +2,12 @@ const historyStorage = {
     name: 'history-gateway',
     version: 2,
     store: 'history-set',
-    handleIndexDbError(error) {
-        console.error("history indexdb error: ", error)
-    },
     async initIndexDb() {
         const request = indexedDB.open(this.name, this.version)
         const defer = this.defer()
         request.onupgradeneeded = this.handleIndexDbInitStructure
         request.onsuccess = open => {
             this.indexDb = open.target.result
-            this.indexDb.onerror = this.handleIndexDbError
             defer.resolve()
         }
         request.onerror = defer.reject
@@ -27,13 +23,15 @@ const historyStorage = {
             await lib.sleep(0.1)
         }
         this.addHistoryRunning = true
+        let error
         try {
             await this.addHistory(entry)
         }
         catch (historyError) {
-            console.error(historyError)
+            error = historyError
         }
         this.addHistoryRunning = false
+        if (error) throw error
     },
     async addHistory(entry) {
         const tx = this.createTransaction(this.store, 'readwrite')
@@ -114,9 +112,9 @@ const historyController = {
         Object.assign(this, {historyApi, historyStorage})
     },
     handleHistory(item) {
-        lib.log('new url: ', item.url)
+        console.debug('new url: ', item.url)
         if (this.match(item.url)) {
-            lib.log('detect url: ', item.url)
+            console.debug('detect url: ', item.url)
             this.historyApi.deleteUrl({url: item.url})
             const rewriteUrl = this.rewrite(item.url)
             this.historyStorage.addHistoryAtomic({
@@ -196,7 +194,7 @@ const historyController = {
         case 'clear-history':
             return await this.historyStorage.clearHistory()
         default:
-            console.error('unknown message type: ', message.type)
+            throw new Error('unknown message type: ', message.type)
         }
     }
 }

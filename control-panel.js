@@ -76,12 +76,6 @@ const historyMaster = {
         offsetString += ':00'
         return local.toISOString().replace('Z', offsetString)
     },
-    handleMessage(message) {
-        switch (message.type) {
-        default:
-            console.error('unknown message: ', message)
-        }
-    },
     table: document.querySelector('table'),
     searchInputLast: null,
     searchInputTimeout: 1, // second
@@ -136,9 +130,6 @@ historyMaster.entryRow = document.createElement('tr')
 historyMaster.entryRow.innerHTML = '<tr><td><td><td>'
 
 rule.loadToPage()
-browser.runtime.onMessage.addListener(
-    message => historyMaster.handleMessage(message)
-)
 document.getElementsByName('save-rule')[0].onclick =
     () => rule.readSaveUpdate()
 document.getElementsByName('download-history')[0].onclick =
