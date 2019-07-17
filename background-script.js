@@ -17,22 +17,6 @@ const historyStorage = {
         const indexDb = upgrade.target.result
         indexDb.createObjectStore('history-set', {keyPath: 'url'})
     },
-    addHistoryRunning: false,
-    async addHistoryAtomic(entry) {
-        while (this.addHistoryRunning) {
-            await lib.sleep(0.1)
-        }
-        this.addHistoryRunning = true
-        let error
-        try {
-            await this.addHistory(entry)
-        }
-        catch (historyError) {
-            error = historyError
-        }
-        this.addHistoryRunning = false
-        if (error) throw error
-    },
     async addHistory(entry) {
         const tx = this.createTransaction(this.store, 'readwrite')
         const existEntry = await this.getHistory(entry, tx)
@@ -111,17 +95,17 @@ const historyController = {
     inject({historyApi, historyStorage}) {
         Object.assign(this, {historyApi, historyStorage})
     },
-    handleHistory(item) {
-        console.debug('new url: ', item.url)
+    async handleHistory(item) {
+        console.debug('visit url: ', item.url)
         if (this.match(item.url)) {
-            console.debug('detect url: ', item.url)
-            this.historyApi.deleteUrl({url: item.url})
+            console.debug('match url: ', item.url)
             const rewriteUrl = this.rewrite(item.url)
-            this.historyStorage.addHistoryAtomic({
+            await this.historyStorage.addHistory({
                 url: rewriteUrl,
                 title: item.title,
                 date: item.lastVisitTime || item.visitTime || Date.now()
             })
+            await this.historyApi.deleteUrl({url: item.url})
         }
     },
     rewrite(url) {
