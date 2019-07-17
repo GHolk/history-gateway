@@ -4,7 +4,7 @@ const historyStorage = {
     store: 'history-set',
     async initIndexDb() {
         const request = indexedDB.open(this.name, this.version)
-        const defer = this.defer()
+        const defer = lib.defer()
         request.onupgradeneeded = this.handleIndexDbInitStructure
         request.onsuccess = open => {
             this.indexDb = open.target.result
@@ -33,7 +33,7 @@ const historyStorage = {
             copyEntry.dateList = [entry.date]
             store.add(copyEntry)
         }
-        const defer = this.defer()
+        const defer = lib.defer()
         tx.oncomplete = defer.resolve
         tx.onerror = defer.reject
         await defer.promise
@@ -44,7 +44,7 @@ const historyStorage = {
     async getHistory(entry, tx = this.createTransaction()) {
         const store = tx.objectStore(this.store)
         const request = store.get(entry.url)
-        const defer = this.defer()
+        const defer = lib.defer()
         request.onsuccess = defer.resolve
         request.onerror = defer.reject
         await defer.promise
@@ -52,7 +52,7 @@ const historyStorage = {
     },
     async getExtractHistory(callback, tx = this.createTransaction()) {
         const store = tx.objectStore(this.store)
-        const defer = this.defer()
+        const defer = lib.defer()
         const request = store.openCursor()
         request.onsuccess = open => {
             const cursor = open.target.result
@@ -69,7 +69,7 @@ const historyStorage = {
         const tx = this.createTransaction(this.store, 'readwrite')
         const store = tx.objectStore(this.store)
         const request = store.clear()
-        const defer = this.defer()
+        const defer = lib.defer()
         request.onsuccess = defer.resolve
         return await defer.promise
     },
@@ -77,17 +77,9 @@ const historyStorage = {
         const tx = this.createTransaction()
         const store = tx.objectStore(this.store)
         const request = store.count()
-        const defer = this.defer()
+        const defer = lib.defer()
         request.onsuccess = () => defer.resolve({count: request.result})
         return await defer.promise
-    },
-    defer() {
-        const defer = {}
-        defer.promise = new Promise((resolve, reject) => {
-            defer.resolve = resolve
-            defer.reject = reject
-        })
-        return defer
     }
 }
 
