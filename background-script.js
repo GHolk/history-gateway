@@ -179,15 +179,20 @@ const historyController = {
         }
     },
     handleOmniboxEnter(url, target) {
-        if (!url) url = 'control-panel.html'
+        try {
+            new URL(url)
+        }
+        catch (invalidUrl) {
+            url = 'control-panel.html'
+        }
         switch (target) {
-        case "currentTab":
+        case 'currentTab':
             browser.tabs.update({url})
             break
-        case "newForegroundTab":
+        case 'newForegroundTab':
             browser.tabs.create({url})
             break
-        case "newBackgroundTab":
+        case 'newBackgroundTab':
             browser.tabs.create({url, active: false})
             break
         }
@@ -208,14 +213,18 @@ const historyController = {
 
         const keywordList = searchString.split(/\s+/g)
 
-        const suggestLength = 6
         const suggestRecorder = {
-            suggest,
+            maxLength: 6,
+            suggestCallback: suggest,
+            suggest() {
+                this.suggestCallback(this.list)
+            },
             list: [],
             add(entry) {
-                if (this.list.length > suggestLength) return
-                else if (this.list.length == suggestLength) {
-                    this.suggest(this.list)
+                if (this.list.length > this.maxLength) return
+                else if (this.list.length == this.maxLength) {
+                    this.suggest()
+                    return
                 }
                 else {
                     this.list.push({
@@ -230,8 +239,8 @@ const historyController = {
             entry => suggestRecorder.add(entry)
         )
         this.omniboxSuggestList = suggestRecorder.list
-        if (suggestRecorder.list.length < suggestLength) {
-            suggest(suggestRecorder.list)
+        if (suggestRecorder.list.length < suggestRecorder.maxLength) {
+            suggestRecorder.suggest()
         }
     }
 }
