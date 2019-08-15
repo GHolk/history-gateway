@@ -1,6 +1,6 @@
 
 const lib = {
-    inputDebounceSecond: 1.5,
+    inputDebounceSecond: 1,
     async waitEvent(target, test) {
         const defer = this.defer()
         const handler = message => {

@@ -2,7 +2,7 @@
     "manifest_version": 2,
     "name": "history gateway",
     "author": "gold holk",
-    "version": "2.0",
+    "version": "2.1",
     "description": "filter some history record and save to other place.",
     "homepage_url": "http://github.com/gholk/history-gateway/",
     "icons": {
@@ -17,6 +17,6 @@
         "page": "control-panel.html"
     },
     "omnibox": {
-        "keyword": "!hgate"
+        "keyword": "hgate"
     }
 }

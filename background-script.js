@@ -15,7 +15,7 @@ const historyStorage = {
     },
     handleIndexDbUpgrade(upgrade) {
         const indexDb = upgrade.target.result
-        if (this.version < 2) {
+        if (upgrade.oldVersion < 2) {
             indexDb.createObjectStore('history-set', {keyPath: 'url'})
         }
     },
@@ -179,6 +179,7 @@ const historyController = {
         }
     },
     handleOmniboxEnter(url, target) {
+        if (!url) url = 'control-panel.html'
         switch (target) {
         case "currentTab":
             browser.tabs.update({url})
@@ -206,11 +207,17 @@ const historyController = {
         }
 
         const keywordList = searchString.split(/\s+/g)
-        console.debug(keywordList)
+
+        const suggestLength = 6
         const suggestRecorder = {
+            suggest,
             list: [],
             add(entry) {
-                if (this.list.length < 6) {
+                if (this.list.length > suggestLength) return
+                else if (this.list.length == suggestLength) {
+                    this.suggest(this.list)
+                }
+                else {
                     this.list.push({
                         content: entry.url,
                         description: entry.title
@@ -223,7 +230,9 @@ const historyController = {
             entry => suggestRecorder.add(entry)
         )
         this.omniboxSuggestList = suggestRecorder.list
-        suggest(suggestRecorder.list)
+        if (suggestRecorder.list.length < suggestLength) {
+            suggest(suggestRecorder.list)
+        }
     }
 }
 
