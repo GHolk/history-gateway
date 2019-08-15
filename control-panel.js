@@ -78,12 +78,12 @@ const historyMaster = {
     },
     table: document.querySelector('table'),
     searchInputLast: null,
-    searchInputTimeout: 1, // second
+    searchInputTimeout: lib.inputDebounceSecond,
     async handleSearchInputDebounce(input) {
         const searchString = input.target.value.trim()
         if (!searchString) return
 
-        const current = new Date()
+        const current = Date.now()
         this.searchInputLast = current
         await lib.sleep(this.searchInputTimeout)
         if (this.searchInputLast != current) return

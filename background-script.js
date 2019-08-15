@@ -5,7 +5,7 @@ const historyStorage = {
     async initIndexDb() {
         const request = indexedDB.open(this.name, this.version)
         const defer = lib.defer()
-        request.onupgradeneeded = this.handleIndexDbInitStructure
+        request.onupgradeneeded = this.handleIndexDbUpgrade
         request.onsuccess = open => {
             this.indexDb = open.target.result
             defer.resolve()
@@ -13,9 +13,11 @@ const historyStorage = {
         request.onerror = defer.reject
         await defer.promise
     },
-    handleIndexDbInitStructure(upgrade) {
+    handleIndexDbUpgrade(upgrade) {
         const indexDb = upgrade.target.result
-        indexDb.createObjectStore('history-set', {keyPath: 'url'})
+        if (this.version < 2) {
+            indexDb.createObjectStore('history-set', {keyPath: 'url'})
+        }
     },
     async addHistory(entry) {
         const tx = this.createTransaction(this.store, 'readwrite')
@@ -129,12 +131,12 @@ const historyController = {
             regexp: new RegExp(rule.regexp, 'i')
         }))
     },
-    async searchHistory(keywordList, port) {
+    async searchHistory(keywordList, callback) {
         const regexpList = keywordList.map(string => new RegExp(string, 'i'))
         await this.historyStorage.getExtractHistory(entry => {
             if (regexpList.every(regexp => regexp.test(entry.title) ||
-                                          regexp.test(entry.url))) {
-                port.postMessage(entry)
+                                           regexp.test(entry.url))) {
+                callback(entry)
             }
         })
     },
@@ -158,7 +160,10 @@ const historyController = {
             const portName = 'search-history-' + String(Math.random()).slice(2)
             const portConnect = lib.waitPort(port => port.name == portName)
             portConnect.then(async port => {
-                await this.searchHistory(keywordList, port)
+                await this.searchHistory(
+                    keywordList,
+                    entry => port.postMessage(entry)
+                )
                 port.disconnect()
             })
             return {portName}
@@ -172,6 +177,53 @@ const historyController = {
         default:
             throw new Error('unknown message type: ', message.type)
         }
+    },
+    handleOmniboxEnter(url, target) {
+        switch (target) {
+        case "currentTab":
+            browser.tabs.update({url})
+            break
+        case "newForegroundTab":
+            browser.tabs.create({url})
+            break
+        case "newBackgroundTab":
+            browser.tabs.create({url, active: false})
+            break
+        }
+    },
+    omniboxChangeLast: null,
+    omniboxChangeTimeout: lib.inputDebounceSecond,
+    omniboxSuggestList: [],
+    async handleOmniboxChangeDebounce(searchString, suggest) {
+        if (!searchString) return
+
+        const current = Date.now()
+        this.omniboxChangeLast = current
+        await lib.sleep(this.omniboxChangeTimeout)
+        if (this.omniboxChangeLast != current) {
+            suggest(this.omniboxSuggestList)
+            return
+        }
+
+        const keywordList = searchString.split(/\s+/g)
+        console.debug(keywordList)
+        const suggestRecorder = {
+            list: [],
+            add(entry) {
+                if (this.list.length < 6) {
+                    this.list.push({
+                        content: entry.url,
+                        description: entry.title
+                    })
+                }
+            }
+        }
+        await this.searchHistory(
+            keywordList,
+            entry => suggestRecorder.add(entry)
+        )
+        this.omniboxSuggestList = suggestRecorder.list
+        suggest(suggestRecorder.list)
     }
 }
 
@@ -184,9 +236,11 @@ historyController.historyStorage.initIndexDb().then(() => {
     browser.runtime.onMessage.addListener(
         message => historyController.handleMessage(message)
     )
+    browser.omnibox.onInputChanged.addListener((text, suggest) => {
+        historyController.handleOmniboxChangeDebounce(text, suggest)
+    })
+    browser.omnibox.onInputEntered.addListener(
+        historyController.handleOmniboxEnter
+    )
 })
 
-function createPort(name = String(Math.random())) {
-    const port = browser.runtime.connect({name})
-    return port
-}
