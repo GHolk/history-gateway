@@ -1,11 +1,11 @@
 const historyStorage = {
     name: 'history-gateway',
-    version: 2,
+    version: 3,
     store: 'history-set',
     async initIndexDb() {
         const request = indexedDB.open(this.name, this.version)
         const defer = lib.defer()
-        request.onupgradeneeded = this.handleIndexDbUpgrade
+        request.onupgradeneeded = this.handleIndexDbUpgrade.bind(this)
         request.onsuccess = open => {
             this.indexDb = open.target.result
             defer.resolve()
@@ -15,8 +15,18 @@ const historyStorage = {
     },
     handleIndexDbUpgrade(upgrade) {
         const indexDb = upgrade.target.result
+        const tx = upgrade.target.transaction
+        console.debug(upgrade.oldVersion)
+        console.debug(tx.objectStoreNames[0])
+        let store
         if (upgrade.oldVersion < 2) {
-            indexDb.createObjectStore('history-set', {keyPath: 'url'})
+            console.debug('new object store')
+            store = indexDb.createObjectStore('history-set', {keyPath: 'url'})
+        }
+        if (upgrade.oldVersion < 3) {
+            console.debug('add index')
+            if (!store) store = tx.objectStore(this.store)
+            store.createIndex('dateList', 'dateList', {multiEntry: true})
         }
     },
     async addHistory(entry) {
@@ -55,7 +65,10 @@ const historyStorage = {
     async getExtractHistory(callback, tx = this.createTransaction()) {
         const store = tx.objectStore(this.store)
         const defer = lib.defer()
-        const request = store.openCursor()
+
+        const range = IDBKeyRange.lowerBound(0) // match anything
+        const direction = 'prev' // from max to min
+        const request = store.index('dateList').openCursor(range, direction)
         request.onsuccess = open => {
             const cursor = open.target.result
             if (cursor) {
@@ -220,14 +233,17 @@ const historyController = {
                 this.suggestCallback(this.list)
             },
             list: [],
+            entryExist(entry) {
+                return this.list.find(item => item.content == entry.url)
+            },
             add(entry) {
                 if (this.list.length > this.maxLength) return
                 else if (this.list.length == this.maxLength) {
                     this.suggest()
                     return
                 }
-                else {
-                    this.list.push({
+                else if (!this.entryExist(entry)) {
+                    return this.list.push({
                         content: entry.url,
                         description: entry.title
                     })

@@ -118,6 +118,7 @@ const historyMaster = {
         anchor.setAttribute('download', `history-gateway-${dateString}.txt`)
         document.body.appendChild(anchor)
         anchor.click()
+        await lib.sleep(lib.inputDebounceSecond)
         anchor.remove()
         URL.revokeObjectURL(response.url)
     },
