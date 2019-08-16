@@ -136,6 +136,7 @@ const historyController = {
         this.load(rule)
     },
     load(rule) {
+        if (!rule) return
         this.rewriteRule = rule.rewrite.map(rule => ({
             regexp: new RegExp(rule.regexp, 'i'),
             replacement: rule.replacement
@@ -214,6 +215,7 @@ const historyController = {
     omniboxChangeTimeout: lib.inputDebounceSecond,
     omniboxSuggestList: [],
     async handleOmniboxChangeDebounce(searchString, suggest) {
+        searchString = searchString.trim()
         if (!searchString) return
 
         const current = Date.now()
