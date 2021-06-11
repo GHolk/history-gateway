@@ -243,41 +243,49 @@ const historyController = {
         }
 
         const keywordList = searchString.split(/\s+/g)
-
-        const suggestRecorder = {
-            maxLength: 6,
-            suggestCallback: suggest,
-            suggest() {
-                this.suggestCallback(this.list)
-            },
-            list: [],
-            entryExist(entry) {
-                return this.list.find(item => item.content == entry.url)
-            },
-            add(entry) {
-                if (this.list.length > this.maxLength) return
-                else if (this.list.length == this.maxLength) {
+        const recorder = this.suggestRecorder.create(suggest)
+        await this.searchHistory(
+            keywordList,
+            entry => recorder.add(entry)
+        )
+        this.omniboxSuggestList = recorder.list
+        if (recorder.list.length < recorder.maxLength) {
+            recorder.suggest()
+        }
+    },
+    suggestRecorder: {
+        create(callback) {
+            const child = Object.create(this)
+            child.list = []
+            child.suggestCallback = callback
+            return child
+        },
+        maxLength: 6,
+        suggestCallback: null,
+        suggest() {
+            this.suggestCallback(this.list)
+        },
+        list: null,
+        entryExist(entry) {
+            return this.list.find(item => item.content == entry.url)
+        },
+        full: false,
+        add(entry) {
+            if (!this.full && !this.entryExist(entry)) {
+                this.list.push({
+                    content: entry.url,
+                    description: entry.title
+                })
+                if (this.list.length == this.maxLength) {
+                    this.full = true
                     this.suggest()
                     return
                 }
-                else if (!this.entryExist(entry)) {
-                    return this.list.push({
-                        content: entry.url,
-                        description: entry.title
-                    })
-                }
             }
-        }
-        await this.searchHistory(
-            keywordList,
-            entry => suggestRecorder.add(entry)
-        )
-        this.omniboxSuggestList = suggestRecorder.list
-        if (suggestRecorder.list.length < suggestRecorder.maxLength) {
-            suggestRecorder.suggest()
         }
     }
 }
+
 
 historyController.inject({historyApi: browser.history, historyStorage})
 historyController.loadFromStorage()
