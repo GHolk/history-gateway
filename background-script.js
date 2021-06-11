@@ -1,6 +1,6 @@
 const historyStorage = {
     name: 'history-gateway',
-    version: 3,
+    version: 4,
     store: 'history-set',
     async initIndexDb() {
         const request = indexedDB.open(this.name, this.version)
@@ -16,17 +16,31 @@ const historyStorage = {
     handleIndexDbUpgrade(upgrade) {
         const indexDb = upgrade.target.result
         const tx = upgrade.target.transaction
-        console.debug(upgrade.oldVersion)
-        console.debug(tx.objectStoreNames[0])
+        console.debug('old version: ' + upgrade.oldVersion)
+        console.debug('object store: ' + tx.objectStoreNames[0])
         let store
         if (upgrade.oldVersion < 2) {
             console.debug('new object store')
             store = indexDb.createObjectStore('history-set', {keyPath: 'url'})
         }
+        else store = tx.objectStore(this.store)
         if (upgrade.oldVersion < 3) {
-            console.debug('add index')
-            if (!store) store = tx.objectStore(this.store)
+            console.debug('add index dateList')
             store.createIndex('dateList', 'dateList', {multiEntry: true})
+        }
+        if (upgrade.oldVersion < 4) {
+            console.debug('add index dateLast')
+            store.createIndex('dateLast', 'dateLast')
+            const request = store.openCursor()
+            request.onsuccess = open => {
+                const cursor = open.target.result
+                if (cursor) {
+                    const entry = cursor.value
+                    entry.dateLast = entry.dateList[entry.dateList.length-1]
+                    const update = cursor.update(entry)
+                    update.onsuccess = () => cursor.continue()
+                }
+            }
         }
     },
     async addHistory(entry) {
@@ -36,6 +50,7 @@ const historyStorage = {
         if (existEntry) {
             existEntry.title = entry.title
             existEntry.dateList.push(entry.date)
+            existEntry.dateLast = entry.date
             store.put(existEntry)
         }
         else {
@@ -43,6 +58,7 @@ const historyStorage = {
             copyEntry.url = entry.url
             copyEntry.title = entry.title
             copyEntry.dateList = [entry.date]
+            copyEntry.dateLast = entry.date
             store.add(copyEntry)
         }
         const defer = lib.defer()
@@ -68,7 +84,7 @@ const historyStorage = {
 
         const range = IDBKeyRange.lowerBound(0) // match anything
         const direction = 'prev' // from max to min
-        const request = store.index('dateList').openCursor(range, direction)
+        const request = store.index('dateLast').openCursor(range, direction)
         request.onsuccess = open => {
             const cursor = open.target.result
             if (cursor) {
