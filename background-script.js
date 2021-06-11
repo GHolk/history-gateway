@@ -229,7 +229,6 @@ const historyController = {
     },
     omniboxChangeLast: null,
     omniboxChangeTimeout: lib.inputDebounceSecond,
-    omniboxSuggestList: [],
     async handleOmniboxChangeDebounce(searchString, suggest) {
         searchString = searchString.trim()
         if (!searchString) return
@@ -238,7 +237,6 @@ const historyController = {
         this.omniboxChangeLast = current
         await lib.sleep(this.omniboxChangeTimeout)
         if (this.omniboxChangeLast != current) {
-            suggest(this.omniboxSuggestList)
             return
         }
 
@@ -248,7 +246,6 @@ const historyController = {
             keywordList,
             entry => recorder.add(entry)
         )
-        this.omniboxSuggestList = recorder.list
         if (recorder.list.length < recorder.maxLength) {
             recorder.suggest()
         }
