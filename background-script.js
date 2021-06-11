@@ -241,7 +241,15 @@ const historyController = {
         }
 
         const keywordList = searchString.split(/\s+/g)
-        const recorder = this.suggestRecorder.create(suggest)
+        const recorder = this.suggestRecorder.create(list => {
+            if (list.length == 0) {
+                suggest([{
+                    content: 'about:blank',
+                    description: 'nothing found'
+                }])
+            }
+            else suggest(list)
+        })
         await this.searchHistory(
             keywordList,
             entry => recorder.add(entry)
